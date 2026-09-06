@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#1f2937">
+  <title>Lean-Zeiterfassung v4 – Spaghetti-Sync</title>
+  <style>
+    :root {
+      --bg:#f3f4f6; --panel:#fff; --text:#111827; --muted:#6b7280;
+      --border:#d1d5db; --active:#16a34a; --danger:#dc2626;
+      --warn:#d97706; --button:#1f2937; --blue:#2563eb; --soft:#eef2ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);touch-action:manipulation}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px}
+    h1{margin:4px 0 12px;font-size:clamp(1.35rem,4vw,2rem)}
+    h2{margin:0 0 10px;font-size:1.1rem}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .grid.fields{grid-template-columns:1.25fr 180px 1fr 2fr}
+    label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px}
+    input,textarea{width:100%;font:inherit;padding:10px;border:1px solid var(--border);border-radius:9px;background:#fff}
+    textarea{min-height:72px;resize:vertical}
+    .activity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    button{border:0;border-radius:12px;padding:13px 12px;font:inherit;font-weight:800;cursor:pointer;min-height:52px}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .activity{background:var(--button);color:#fff;font-size:clamp(.98rem,3vw,1.2rem);min-height:72px;overflow-wrap:anywhere}
+    .activity.active{background:var(--active);outline:5px solid rgba(22,163,74,.25);transform:scale(1.01)}
+    .toolbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+    .secondary{background:#e5e7eb;color:#111827}
+    .finish{background:var(--danger);color:#fff}
+    .export{background:var(--blue);color:#fff}
+    .new{background:var(--warn);color:#fff}
+    .add{background:var(--soft);color:#3730a3;border:1px solid #c7d2fe}
+    .status{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:1rem}
+    .status strong{font-size:1.15rem}
+    .timer{font-variant-numeric:tabular-nums;font-size:clamp(1.5rem,7vw,2.7rem);font-weight:900}
+    .small{color:var(--muted);font-size:.86rem}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    th{background:#f9fafb;position:sticky;top:0}
+    .right{text-align:right}
+    .notice{padding:9px 10px;border-radius:9px;background:#fef3c7;color:#78350f;margin-top:8px;display:none}
+    .saved{padding:9px 10px;border-radius:9px;background:#dcfce7;color:#166534;margin-top:8px}
+    .activity-editor{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-top:8px}
+    .activity-editor input{min-width:0}
+    .activity-setup{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+    .activity-setup textarea{min-height:120px}
+    .mini{min-height:42px;padding:8px 10px;border-radius:9px}
+    dialog{border:0;border-radius:14px;padding:0;max-width:520px;width:calc(100% - 24px);box-shadow:0 20px 50px rgba(0,0,0,.25)}
+    dialog::backdrop{background:rgba(17,24,39,.5)}
+    .dialog-body{padding:16px}
+    .dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+    @media(max-width:760px){.grid.fields{grid-template-columns:1fr 1fr}.grid.fields .description{grid-column:1/-1}.toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:420px){.grid,.grid.fields,.activity-grid,.toolbar,.activity-setup{grid-template-columns:1fr}.activity-editor{grid-template-columns:1fr auto auto}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lean-Zeiterfassung</h1>
+
+  <section class="panel">
+    <h2>Beobachtung</h2>
+    <div class="grid fields">
+      <div><label for="beobachtungsId">Beobachtungs-ID *</label><input id="beobachtungsId" placeholder="z. B. 2026-09-04_Montagetisch1_01" autocomplete="off"></div>
+      <div><label for="datum">Datum</label><input id="datum" type="date"></div>
+      <div><label for="mitarbeiter">Mitarbeiter</label><input id="mitarbeiter" autocomplete="off"></div>
+      <div class="description"><label for="beschreibung">Beschreibung</label><input id="beschreibung" placeholder="z. B. Arbeitsablauf, Arbeitsplatz, Auftrag …" autocomplete="off"></div>
+    </div>
+    <div class="small" style="margin-top:8px">Die Beobachtungs-ID muss in Zeiterfassung und Spaghettidiagramm identisch eingetragen werden. Sie wird in jeder CSV-Zeile gespeichert.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Tätigkeiten vorbereiten</h2>
+    <div class="small" style="margin-bottom:8px">Vor Beginn die erwarteten konkreten Tätigkeiten eintragen – eine Tätigkeit pro Zeile. Zum Beispiel „Hölzer auflegen“, „Hölzer verschrauben“, „Schrauben suchen“ oder „Pläne lesen“. Eine Lean-Kategorie wird hier bewusst noch nicht vergeben.</div>
+    <div class="activity-setup">
+      <div>
+        <label for="activitySetupText">Tätigkeitsliste</label>
+        <textarea id="activitySetupText" placeholder="Hölzer auflegen
+Hölzer verschrauben
+Schrauben suchen
+Pläne lesen"></textarea>
+      </div>
+      <button class="export" id="applyActivityListBtn">Liste übernehmen</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="status">
+      <div>
+        <div class="small">Aktuelle Tätigkeit</div>
+        <strong id="activeName">Noch nicht gestartet</strong>
+        <div class="small" id="activeStart"></div>
+      </div>
+      <div class="timer" id="timer">00:00:00</div>
+    </div>
+    <div class="saved" id="savedInfo">0 abgeschlossene Beobachtungen lokal gespeichert.</div>
+    <div id="notice" class="notice"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Tätigkeit auswählen</h2>
+    <div class="activity-grid" id="activityGrid"></div>
+    <div class="toolbar">
+      <button class="add" id="quickAddBtn">+ Tätigkeit hinzufügen</button>
+      <button class="secondary" id="renameActiveBtn">Aktuelle Tätigkeit umbenennen</button>
+      <button class="secondary" id="undoBtn">Letzten Wechsel rückgängig</button>
+      <button class="finish" id="finishBtn">Beobachtung beenden</button>
+      <button class="new" id="newBtn">Neue Beobachtung</button>
+      <button class="export" id="exportBtn">CSV exportieren</button>
+      <button class="secondary" id="settingsBtn">Tätigkeitsliste bearbeiten</button>
+      <button class="secondary" id="clearBtn">Gespeicherte Daten löschen</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Aufzeichnungen der aktuellen Beobachtung</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Tätigkeit</th><th>Start</th><th>Stopp</th><th class="right">Dauer</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<dialog id="nameDialog">
+  <form method="dialog" class="dialog-body" id="nameDialogForm">
+    <h2 id="nameDialogTitle">Tätigkeit</h2>
+    <label for="nameDialogInput">Bezeichnung</label>
+    <input id="nameDialogInput" maxlength="80" autocomplete="off">
+    <div class="small" id="nameDialogHint" style="margin-top:8px"></div>
+    <div class="dialog-actions">
+      <button class="secondary" value="cancel">Abbrechen</button>
+      <button class="export" value="ok" id="nameDialogOk">Übernehmen</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settingsDialog">
+  <div class="dialog-body">
+    <h2>Tätigkeiten verwalten</h2>
+    <div class="small">Diese Liste wird lokal im Browser gespeichert und für neue Beobachtungen beibehalten.</div>
+    <div id="activityEditorList" style="margin-top:10px"></div>
+    <button class="add" id="settingsAddBtn" style="width:100%;margin-top:10px">+ Tätigkeit hinzufügen</button>
+    <div class="dialog-actions">
+      <button class="secondary" id="settingsCloseBtn">Schließen</button>
+      <button class="export" id="settingsSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "lean_zeiterfassung_v3";
+  const DEFAULT_ACTIVITIES = [
+    "Hölzer auflegen",
+    "Hölzer verschrauben",
+    "Schrauben suchen",
+    "Pläne lesen"
+  ];
+  const FIELD_IDS = ["beobachtungsId","datum","mitarbeiter","beschreibung"];
+
+  let state = {
+    activities:[...DEFAULT_ACTIVITIES],
+    current:freshCurrent(),
+    completed:[]
+  };
+
+  let dialogAction = null;
+  let pendingAddWasRunning = false;
+  let pendingAddPreviousActivity = null;
+  let pendingAddStartMs = null;
+  let settingsDraft = [];
+
+  function freshCurrent() {
+    return {
+      active:null,
+      activeStartMs:null,
+      records:[],
+      finished:false,
+      observationStartedAt:null,
+      observationFinishedAt:null,
+      archived:false
+    };
+  }
+
+  const activityGrid = document.getElementById("activityGrid");
+  const activeName = document.getElementById("activeName");
+  const activeStart = document.getElementById("activeStart");
+  const timer = document.getElementById("timer");
+  const logBody = document.getElementById("logBody");
+  const notice = document.getElementById("notice");
+  const savedInfo = document.getElementById("savedInfo");
+  const renameActiveBtn = document.getElementById("renameActiveBtn");
+  const nameDialog = document.getElementById("nameDialog");
+  const nameDialogForm = document.getElementById("nameDialogForm");
+  const nameDialogTitle = document.getElementById("nameDialogTitle");
+  const nameDialogInput = document.getElementById("nameDialogInput");
+  const nameDialogHint = document.getElementById("nameDialogHint");
+  const settingsDialog = document.getElementById("settingsDialog");
+  const activityEditorList = document.getElementById("activityEditorList");
+  const activitySetupText = document.getElementById("activitySetupText");
+
+  const pad = n => String(n).padStart(2,"0");
+
+  function todayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  function localDateTime(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function localTimeOnly(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,"0")}`;
+  }
+
+  function localIsoWithOffset(ms) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    const offsetMinutes = -d.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const absOffset = Math.abs(offsetMinutes);
+    const offH = pad(Math.floor(absOffset / 60));
+    const offM = pad(absOffset % 60);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3,"0")}${sign}${offH}:${offM}`;
+  }
+
+  function durationText(ms) {
+    const total = Math.max(0,Math.round(ms/1000));
+    return `${pad(Math.floor(total/3600))}:${pad(Math.floor((total%3600)/60))}:${pad(total%60)}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>'"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
+  }
+
+  function getMeta() {
+    const meta = {};
+    FIELD_IDS.forEach(id => meta[id] = document.getElementById(id).value.trim());
+    return meta;
+  }
+
+  function setMeta(meta={}) {
+    FIELD_IDS.forEach(id => document.getElementById(id).value = meta[id] ?? "");
+    if (!document.getElementById("datum").value) document.getElementById("datum").value = todayIso();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({state,meta:getMeta()}));
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        setMeta({datum:todayIso()});
+        return;
+      }
+      const data = JSON.parse(raw);
+      if (data.state) state = data.state;
+      if (!Array.isArray(state.activities) || !state.activities.length) state.activities = [...DEFAULT_ACTIVITIES];
+      if (!state.current) state.current = freshCurrent();
+      if (!Array.isArray(state.completed)) state.completed = [];
+      setMeta(data.meta || {datum:todayIso()});
+    } catch {
+      setMeta({datum:todayIso()});
+      showNotice("Gespeicherte Daten konnten nicht geladen werden.");
+    }
+  }
+
+  function showNotice(text) {
+    notice.textContent = text;
+    notice.style.display = "block";
+    clearTimeout(showNotice._timer);
+    showNotice._timer = setTimeout(() => notice.style.display = "none", 4500);
+  }
+
+  function closeActive(endMs) {
+    const c = state.current;
+    if (!c.active || !c.activeStartMs) return;
+    c.records.push({
+      activity:c.active,
+      startMs:c.activeStartMs,
+      stopMs:endMs,
+      durationMs:endMs-c.activeStartMs
+    });
+  }
+
+  function validateStart() {
+    const meta = getMeta();
+    if (!meta.beobachtungsId || !meta.datum || !meta.mitarbeiter) {
+      showNotice("Beobachtungs-ID, Datum und Mitarbeiter müssen eingetragen sein.");
+      const missing = !meta.beobachtungsId ? "beobachtungsId" : (!meta.datum ? "datum" : "mitarbeiter");
+      document.getElementById(missing).focus();
+      return false;
+    }
+    return true;
+  }
+
+  function switchActivity(name) {
+    const c = state.current;
+    if (c.finished) {
+      showNotice("Die Beobachtung ist abgeschlossen. Bitte „Neue Beobachtung“ wählen.");
+      return;
+    }
+    if (!validateStart()) return;
+    if (c.active === name) {
+      showNotice(`${name} läuft bereits.`);
+      return;
+    }
+    const t = Date.now();
+    if (!c.observationStartedAt) c.observationStartedAt = t;
+    closeActive(t);
+    c.active = name;
+    c.activeStartMs = t;
+    save();
+    render();
+  }
+
+  function finishObservation() {
+    const c = state.current;
+    if (c.finished) {
+      showNotice("Die Beobachtung ist bereits abgeschlossen.");
+      return;
+    }
+    if (!validateStart()) return;
+    if (!c.active && c.records.length === 0) {
+      showNotice("Es wurde noch keine Tätigkeit erfasst.");
+      return;
+    }
+    const t = Date.now();
+    closeActive(t);
+    c.active = null;
+    c.activeStartMs = null;
+    c.finished = true;
+    c.observationFinishedAt = t;
+
+    if (!c.archived) {
+      state.completed.push({
+        meta:getMeta(),
+        observationStartedAt:c.observationStartedAt,
+        observationFinishedAt:c.observationFinishedAt,
+        records:structuredClone(c.records)
+      });
+      c.archived = true;
+    }
+    save();
+    render();
+    showNotice("Beobachtung abgeschlossen und lokal gespeichert.");
+  }
+
+  function undoLast() {
+    const c = state.current;
+    if (c.finished) {
+      showNotice("Eine abgeschlossene Beobachtung kann nicht mehr rückgängig gemacht werden.");
+      return;
+    }
+    if (c.active && c.records.length > 0) {
+      const last = c.records.pop();
+      c.active = last.activity;
+      c.activeStartMs = last.startMs;
+      save(); render();
+      showNotice("Letzter Tätigkeitswechsel wurde rückgängig gemacht.");
+      return;
+    }
+    if (c.active && c.records.length === 0) {
+      c.active = null;
+      c.activeStartMs = null;
+      c.observationStartedAt = null;
+      save(); render();
+      showNotice("Erster Start wurde rückgängig gemacht.");
+      return;
+    }
+    showNotice("Es gibt keinen Wechsel zum Rückgängigmachen.");
+  }
+
+  function newObservation() {
+    const c = state.current;
+    if ((c.active || c.records.length) && !c.finished) {
+      if (!confirm("Die aktuelle Beobachtung ist noch nicht abgeschlossen. Trotzdem eine neue Beobachtung beginnen?")) return;
+    }
+    const meta = getMeta();
+    meta.beobachtungsId = "";
+    meta.datum = todayIso();
+    meta.beschreibung = "";
+    state.current = freshCurrent();
+    setMeta(meta);
+    save();
+    render();
+    document.getElementById("beobachtungsId").focus();
+  }
+
+  function normalizeActivityName(name) {
+    return String(name || "").trim().replace(/\s+/g," ").slice(0,80);
+  }
+
+  function addActivity(name, startImmediately=false) {
+    name = normalizeActivityName(name);
+    if (!name) return false;
+    const existing = state.activities.find(a => a.toLocaleLowerCase("de") === name.toLocaleLowerCase("de"));
+    if (!existing) state.activities.push(name);
+    save();
+    renderActivities();
+    if (startImmediately) switchActivity(existing || name);
+    return true;
+  }
+
+  function openNameDialog(mode) {
+    dialogAction = mode;
+    if (mode === "add") {
+      pendingAddWasRunning = !!state.current.active;
+      pendingAddPreviousActivity = state.current.active;
+      pendingAddStartMs = null;
+
+      if (pendingAddWasRunning) {
+        const t = Date.now();
+        closeActive(t);
+        state.current.active = "Neue Tätigkeit …";
+        state.current.activeStartMs = t;
+        pendingAddStartMs = t;
+        save();
+        render();
+      }
+
+      nameDialogTitle.textContent = "Tätigkeit hinzufügen";
+      nameDialogInput.value = "";
+      nameDialogHint.textContent = pendingAddWasRunning
+        ? "Die neue Tätigkeit läuft bereits seit dem Klick auf „Tätigkeit hinzufügen“. Nur die Bezeichnung fehlt noch."
+        : "Die Tätigkeit wird nur angelegt. Da keine Beobachtung läuft, wird sie nicht gestartet.";
+    } else {
+      if (!state.current.active) {
+        showNotice("Aktuell läuft keine Tätigkeit.");
+        return;
+      }
+      nameDialogTitle.textContent = "Aktuelle Tätigkeit umbenennen";
+      nameDialogInput.value = state.current.active;
+      nameDialogHint.textContent = "Nur der aktuell laufende Abschnitt wird umbenannt. Bereits abgeschlossene Abschnitte bleiben unverändert. Die neue Bezeichnung wird zugleich als Tätigkeitsbutton gespeichert.";
+    }
+    nameDialog.showModal();
+    setTimeout(() => {nameDialogInput.focus(); nameDialogInput.select();},0);
+  }
+
+  function applyNameDialog() {
+    const name = normalizeActivityName(nameDialogInput.value);
+    if (!name) {
+      showNotice("Bitte eine Bezeichnung eingeben.");
+      return false;
+    }
+    if (dialogAction === "add") {
+      if (pendingAddWasRunning && state.current.activeStartMs === pendingAddStartMs) {
+        state.current.active = name;
+        if (!state.activities.some(a => a.toLocaleLowerCase("de") === name.toLocaleLowerCase("de"))) state.activities.push(name);
+        save();
+        render();
+        showNotice(`Neue Tätigkeit „${name}“ läuft seit dem Klick auf „Tätigkeit hinzufügen“.`);
+      } else {
+        addActivity(name, false);
+        showNotice(`Tätigkeit „${name}“ wurde hinzugefügt.`);
+      }
+      pendingAddWasRunning = false;
+      pendingAddPreviousActivity = null;
+      pendingAddStartMs = null;
+      return true;
+    }
+    if (dialogAction === "rename") {
+      state.current.active = name;
+      if (!state.activities.some(a => a.toLocaleLowerCase("de") === name.toLocaleLowerCase("de"))) state.activities.push(name);
+      save(); render();
+      showNotice(`Aktuelle Tätigkeit heißt jetzt „${name}“.`);
+      return true;
+    }
+    return true;
+  }
+
+  function csvCell(value) {
+    return `"${String(value ?? "").replaceAll('"','""')}"`;
+  }
+
+  function exportCsv() {
+    const observations = state.completed.slice();
+    const c = state.current;
+    if (!c.finished && (c.records.length || c.active)) {
+      const records = c.records.slice();
+      if (c.active && c.activeStartMs) {
+        const t = Date.now();
+        records.push({activity:c.active,startMs:c.activeStartMs,stopMs:t,durationMs:t-c.activeStartMs});
+      }
+      observations.push({
+        meta:getMeta(),
+        observationStartedAt:c.observationStartedAt,
+        observationFinishedAt:null,
+        records
+      });
+    }
+    if (!observations.length) {
+      showNotice("Keine Daten zum Exportieren vorhanden.");
+      return;
+    }
+
+    const rows = [[
+      "Beobachtungs_ID","Datum","Mitarbeiter","Beschreibung","Beobachtung_Start","Beobachtung_Stopp",
+      "Tätigkeit","Startzeit","Endzeit","Start_ISO_Millisekunden","Ende_ISO_Millisekunden",
+      "Dauer_Millisekunden","Dauer_Sekunden","Stoppzeit"
+    ]];
+
+    observations.forEach(obs => {
+      const m = obs.meta || {};
+      (obs.records || []).forEach(r => {
+        const durationMs = Math.max(0, Math.round(r.stopMs - r.startMs));
+        rows.push([
+          m.beobachtungsId,m.datum,m.mitarbeiter,m.beschreibung,
+          localDateTime(obs.observationStartedAt),localDateTime(obs.observationFinishedAt),
+          r.activity,localTimeOnly(r.startMs),localTimeOnly(r.stopMs),
+          localIsoWithOffset(r.startMs),localIsoWithOffset(r.stopMs),
+          String(durationMs),(durationMs/1000).toFixed(3).replace(".",","),localDateTime(r.stopMs)
+        ]);
+      });
+    });
+
+    const csv = "\uFEFF" + rows.map(r => r.map(csvCell).join(";")).join("\r\n");
+    const blob = new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const d = new Date();
+    a.href = url;
+    a.download = `Lean_Zeiterfassung_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showNotice(`${observations.length} Beobachtung(en) wurden exportiert. Die lokalen Daten bleiben erhalten.`);
+  }
+
+  function clearSaved() {
+    if (!confirm("Alle abgeschlossenen Beobachtungen, die aktuelle Beobachtung und die Tätigkeitsliste dauerhaft aus diesem Browser löschen?")) return;
+    if (!confirm("Wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+    state = {activities:[...DEFAULT_ACTIVITIES],current:freshCurrent(),completed:[]};
+    setMeta({datum:todayIso()});
+    save(); render();
+    showNotice("Alle lokal gespeicherten Daten wurden gelöscht.");
+  }
+
+  function syncActivitySetupText() {
+    if (document.activeElement !== activitySetupText) {
+      activitySetupText.value = state.activities.join("\n");
+    }
+  }
+
+  function applyActivitySetupList() {
+    const names = activitySetupText.value.split(/\r?\n/)
+      .map(normalizeActivityName)
+      .filter(Boolean);
+    const unique = [];
+    names.forEach(name => {
+      if (!unique.some(x => x.toLocaleLowerCase("de") === name.toLocaleLowerCase("de"))) unique.push(name);
+    });
+    if (!unique.length) {
+      showNotice("Bitte mindestens eine Tätigkeit eintragen.");
+      activitySetupText.focus();
+      return;
+    }
+    state.activities = unique;
+    save();
+    render();
+    showNotice("Tätigkeitsliste übernommen. Die Beobachtung kann gestartet werden.");
+  }
+
+  function renderActivities() {
+    activityGrid.innerHTML = "";
+    state.activities.forEach(name => {
+      const btn = document.createElement("button");
+      btn.className = "activity" + (state.current.active === name ? " active" : "");
+      btn.textContent = name;
+      btn.addEventListener("click",() => switchActivity(name));
+      activityGrid.appendChild(btn);
+    });
+  }
+
+  function renderLog() {
+    logBody.innerHTML = "";
+    state.current.records.forEach((r,i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(r.activity)}</td><td>${localDateTime(r.startMs)}</td><td>${localDateTime(r.stopMs)}</td><td class="right">${durationText(r.durationMs)}</td>`;
+      logBody.appendChild(tr);
+    });
+    const c = state.current;
+    if (c.active && c.activeStartMs) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${c.records.length+1}</td><td><strong>${escapeHtml(c.active)}</strong></td><td>${localDateTime(c.activeStartMs)}</td><td>läuft …</td><td class="right" id="liveRowDuration">${durationText(Date.now()-c.activeStartMs)}</td>`;
+      logBody.appendChild(tr);
+    }
+  }
+
+  function renderSettingsEditor() {
+    activityEditorList.innerHTML = "";
+    settingsDraft.forEach((name,index) => {
+      const row = document.createElement("div");
+      row.className = "activity-editor";
+      row.innerHTML = `
+        <input data-index="${index}" value="${escapeHtml(name)}" maxlength="80" aria-label="Tätigkeit ${index+1}">
+        <button class="secondary mini" data-up="${index}" title="Nach oben">↑</button>
+        <button class="secondary mini" data-remove="${index}" title="Entfernen">×</button>`;
+      activityEditorList.appendChild(row);
+    });
+  }
+
+  function openSettings() {
+    settingsDraft = [...state.activities];
+    renderSettingsEditor();
+    settingsDialog.showModal();
+  }
+
+  function saveSettings() {
+    const names = [...activityEditorList.querySelectorAll("input")]
+      .map(i => normalizeActivityName(i.value))
+      .filter(Boolean);
+    const unique = [];
+    names.forEach(name => {
+      if (!unique.some(x => x.toLocaleLowerCase("de") === name.toLocaleLowerCase("de"))) unique.push(name);
+    });
+    if (!unique.length) {
+      showNotice("Mindestens eine Tätigkeit muss vorhanden sein.");
+      return;
+    }
+    state.activities = unique;
+    save(); render();
+    settingsDialog.close();
+    showNotice("Tätigkeitsliste gespeichert.");
+  }
+
+  function render() {
+    const c = state.current;
+    renderActivities();
+    syncActivitySetupText();
+    renderLog();
+    savedInfo.textContent = `${state.completed.length} abgeschlossene Beobachtung(en) lokal gespeichert.`;
+    renameActiveBtn.disabled = !c.active;
+
+    if (c.active) {
+      activeName.textContent = c.active;
+      activeStart.textContent = `Start: ${localDateTime(c.activeStartMs)}`;
+    } else if (c.finished) {
+      activeName.textContent = "Beobachtung abgeschlossen";
+      activeStart.textContent = `Stopp: ${localDateTime(c.observationFinishedAt)}`;
+      timer.textContent = durationText((c.observationFinishedAt||0)-(c.observationStartedAt||0));
+    } else {
+      activeName.textContent = "Noch nicht gestartet";
+      activeStart.textContent = "";
+      timer.textContent = "00:00:00";
+    }
+  }
+
+  function tick() {
+    const c = state.current;
+    if (c.active && c.activeStartMs) {
+      const text = durationText(Date.now()-c.activeStartMs);
+      timer.textContent = text;
+      const live = document.getElementById("liveRowDuration");
+      if (live) live.textContent = text;
+    }
+  }
+
+  document.getElementById("applyActivityListBtn").addEventListener("click",applyActivitySetupList);
+  document.getElementById("quickAddBtn").addEventListener("click",() => openNameDialog("add"));
+  renameActiveBtn.addEventListener("click",() => openNameDialog("rename"));
+  document.getElementById("undoBtn").addEventListener("click",undoLast);
+  document.getElementById("finishBtn").addEventListener("click",finishObservation);
+  document.getElementById("newBtn").addEventListener("click",newObservation);
+  document.getElementById("exportBtn").addEventListener("click",exportCsv);
+  document.getElementById("settingsBtn").addEventListener("click",openSettings);
+  document.getElementById("clearBtn").addEventListener("click",clearSaved);
+  FIELD_IDS.forEach(id => document.getElementById(id).addEventListener("input",save));
+
+  nameDialogForm.addEventListener("submit",event => {
+    const submitterValue = event.submitter?.value;
+    if (submitterValue === "ok") {
+      event.preventDefault();
+      if (applyNameDialog()) nameDialog.close();
+    }
+  });
+
+  nameDialog.addEventListener("close",() => {
+    if (dialogAction === "add" && pendingAddWasRunning && state.current.activeStartMs === pendingAddStartMs && state.current.active === "Neue Tätigkeit …") {
+      state.current.active = pendingAddPreviousActivity;
+      state.current.activeStartMs = pendingAddStartMs;
+      save();
+      render();
+      showNotice("Hinzufügen abgebrochen. Die vorherige Tätigkeit läuft weiter.");
+    }
+    pendingAddWasRunning = false;
+    pendingAddPreviousActivity = null;
+    pendingAddStartMs = null;
+    dialogAction = null;
+  });
+
+  document.getElementById("settingsAddBtn").addEventListener("click",() => {
+    settingsDraft = [...activityEditorList.querySelectorAll("input")].map(i => i.value);
+    settingsDraft.push("");
+    renderSettingsEditor();
+    const inputs = activityEditorList.querySelectorAll("input");
+    inputs[inputs.length-1]?.focus();
+  });
+
+  activityEditorList.addEventListener("click",event => {
+    const currentValues = [...activityEditorList.querySelectorAll("input")].map(i => i.value);
+    const removeIndex = event.target.dataset.remove;
+    const upIndex = event.target.dataset.up;
+    if (removeIndex !== undefined) {
+      currentValues.splice(Number(removeIndex),1);
+      settingsDraft = currentValues;
+      renderSettingsEditor();
+    } else if (upIndex !== undefined) {
+      const i = Number(upIndex);
+      if (i > 0) [currentValues[i-1],currentValues[i]] = [currentValues[i],currentValues[i-1]];
+      settingsDraft = currentValues;
+      renderSettingsEditor();
+    }
+  });
+
+  document.getElementById("settingsCloseBtn").addEventListener("click",() => settingsDialog.close());
+  document.getElementById("settingsSaveBtn").addEventListener("click",saveSettings);
+
+  window.addEventListener("beforeunload",save);
+  document.addEventListener("visibilitychange",save);
+
+  load();
+  render();
+  setInterval(tick,250);
+})();
+</script>
+</body>
+</html>

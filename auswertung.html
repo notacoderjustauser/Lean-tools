@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lean-Auswertung – Tätigkeiten & Wege</title>
+<style>
+:root{--bg:#f3f4f6;--panel:#fff;--text:#111827;--muted:#6b7280;--border:#d1d5db;--blue:#2563eb;--green:#16a34a;--warn:#d97706;--danger:#dc2626;--dark:#1f2937}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.wrap{max-width:1450px;margin:auto;padding:14px}
+h1{margin:3px 0 4px;font-size:clamp(1.45rem,3vw,2rem)}
+.lead{color:var(--muted);margin:0 0 14px}
+h2{font-size:1.08rem;margin:0 0 10px}
+h3{font-size:.98rem;margin:0 0 8px}
+.panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.grid{display:grid;gap:10px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:repeat(5,minmax(0,1fr))}.kpis{grid-template-columns:repeat(6,minmax(0,1fr))}
+.kpi{padding:12px;border:1px solid var(--border);border-radius:11px;background:#f9fafb}.kpi b{font-size:1.35rem;display:block}.small{font-size:.84rem;color:var(--muted)}
+label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:4px}
+input,select,button{font:inherit}input,select{width:100%;padding:9px;border:1px solid var(--border);border-radius:9px;background:white}
+button{border:0;border-radius:10px;padding:11px 13px;font-weight:750;cursor:pointer}.primary{background:var(--blue);color:white}.secondary{background:#e5e7eb}.danger{background:var(--danger);color:white}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.drop{border:2px dashed #9ca3af;border-radius:12px;padding:18px;text-align:center;background:#f9fafb;min-height:130px;display:flex;flex-direction:column;justify-content:center}.drop.drag{border-color:var(--blue);background:#eff6ff}
+.drop.activity{border-color:#93c5fd}.drop.path{border-color:#fdba74}
+.table-wrap{overflow:auto;max-height:550px}table{width:100%;border-collapse:collapse;font-size:.86rem}th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#f9fafb;z-index:1}.right{text-align:right;white-space:nowrap}.assign{min-width:190px}
+.barrow{display:grid;grid-template-columns:minmax(170px,1.4fr) 3fr 100px;gap:10px;align-items:center;margin:8px 0}.bartrack{height:22px;background:#e5e7eb;border-radius:7px;overflow:hidden}.bar{height:100%;background:#6b7280;min-width:1px}
+.notice{display:none;margin-top:8px;padding:9px;border-radius:8px;background:#fef3c7;color:#78350f}.ok{background:#dcfce7;color:#166534}.warnbox{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;padding:9px;border-radius:9px;margin-top:8px}
+.catrow{display:grid;grid-template-columns:1fr auto;gap:8px;margin:6px 0}.badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:.76rem;font-weight:700;background:#e5e7eb}.badge.exact{background:#dcfce7;color:#166534}.badge.tol{background:#fef3c7;color:#92400e}.badge.none{background:#fee2e2;color:#991b1b}
+.syncbox{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}.help{font-size:.8rem;color:var(--muted);margin-top:4px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tab{background:#e5e7eb}.tab.active{background:var(--dark);color:#fff}.view{display:none}.view.active{display:block}
+@media(max-width:1050px){.filters{grid-template-columns:repeat(3,1fr)}.kpis{grid-template-columns:repeat(3,1fr)}.syncbox{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.two,.filters,.kpis,.syncbox{grid-template-columns:1fr}.barrow{grid-template-columns:1fr}.bartrack{height:18px}}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Lean-Auswertung – Tätigkeiten & Wege</h1>
+<p class="lead">Gemeinsame Auswertung der Tätigkeitserfassung und der Spaghettidiagramm-Wegzeiten über Beobachtungs-ID und präzise Zeitintervalle.</p>
+
+<section class="panel">
+  <div class="grid two">
+    <div>
+      <h2>1. Tätigkeitserfassung einlesen</h2>
+      <div id="dropAct" class="drop activity">
+        <b>CSV-Dateien der Tätigkeitserfassung</b>
+        <div class="small">hierher ziehen oder auswählen</div>
+        <div style="margin-top:8px"><button class="primary" id="pickAct">Tätigkeits-CSV auswählen</button></div>
+        <input id="fileAct" type="file" accept=".csv,text/csv" multiple hidden>
+      </div>
+      <div class="small" id="actInfo" style="margin-top:6px">Noch keine Tätigkeitsdaten geladen.</div>
+    </div>
+    <div>
+      <h2>2. Spaghettidiagramm einlesen</h2>
+      <div id="dropPath" class="drop path">
+        <b>CSV-Dateien mit Wegzeiten</b>
+        <div class="small">hierher ziehen oder auswählen</div>
+        <div style="margin-top:8px"><button class="primary" id="pickPath">Weg-CSV auswählen</button></div>
+        <input id="filePath" type="file" accept=".csv,text/csv" multiple hidden>
+      </div>
+      <div class="small" id="pathInfo" style="margin-top:6px">Noch keine Wegdaten geladen.</div>
+    </div>
+  </div>
+  <div id="notice" class="notice"></div>
+  <div class="toolbar" style="margin-top:10px">
+    <button class="secondary" id="clearBtn">Eingelesene Daten leeren</button>
+    <button class="secondary" id="exportMapBtn">Kategorien-Zuordnung exportieren</button>
+    <button class="secondary" id="importMapBtn">Kategorien-Zuordnung importieren</button>
+    <input id="mapInput" type="file" accept=".json,application/json" hidden>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Synchronisierung</h2>
+  <div class="syncbox">
+    <div><label>Zuordnungstoleranz [s]</label><input id="tol" type="number" min="0" step="0.1" value="3"><div class="help">Nur wenn ein Weg gar keine echte Überlappung mit einer Tätigkeit hat.</div></div>
+    <div><label>Zeitversatz Wegdaten [s]</label><input id="offset" type="number" step="0.1" value="0"><div class="help">Positiv = Wegzeiten werden später verschoben; negativ = früher.</div></div>
+    <div><label>Beobachtungs-ID</label><select id="fObs"><option value="">Alle</option></select></div>
+    <div><button class="primary" id="applySync">Synchronisierung neu berechnen</button></div>
+  </div>
+  <div class="warnbox">Hinweis: Die Beobachter müssen nicht im selben Moment drücken. Echte Zeitüberlappungen werden direkt verwendet. Die Toleranz fängt nur kleine Lücken an Tätigkeitsgrenzen ab. Ein möglicher Uhrversatz zwischen den zwei Geräten kann separat korrigiert werden.</div>
+</section>
+
+<section class="panel">
+  <h2>Filter</h2>
+  <div class="grid filters">
+    <div><label>Datum</label><select id="fDate"><option value="">Alle</option></select></div>
+    <div><label>Mitarbeiter</label><select id="fEmployee"><option value="">Alle</option></select></div>
+    <div><label>Beschreibung enthält</label><input id="fDesc" placeholder="z. B. Montagetisch"></div>
+    <div><label>Kategorie</label><select id="fCat"><option value="">Alle</option></select></div>
+    <div><label>Tätigkeit enthält</label><input id="fAct" placeholder="z. B. suchen"></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="grid kpis">
+    <div class="kpi"><span class="small">Tätigkeitsabschnitte</span><b id="kActRows">0</b></div>
+    <div class="kpi"><span class="small">Tätigkeitszeit</span><b id="kActTime">00:00:00</b></div>
+    <div class="kpi"><span class="small">Wege</span><b id="kPaths">0</b></div>
+    <div class="kpi"><span class="small">Wegzeit</span><b id="kPathTime">00:00:00</b></div>
+    <div class="kpi"><span class="small">Wege mit Zuordnung</span><b id="kMatched">0</b></div>
+    <div class="kpi"><span class="small">Ohne Zuordnung</span><b id="kUnmatched">0</b></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="tabs">
+    <button class="tab active" data-view="sync">Wege × Tätigkeiten</button>
+    <button class="tab" data-view="activities">Tätigkeiten</button>
+    <button class="tab" data-view="categories">Kategorien</button>
+    <button class="tab" data-view="paths">Wege</button>
+    <button class="tab" data-view="details">Rohdaten</button>
+  </div>
+
+  <div id="view-sync" class="view active">
+    <h2>Wege × Tätigkeiten</h2>
+    <div class="small" style="margin-bottom:8px">Bei mehreren Tätigkeiten während eines Weges wird jede echte zeitliche Überschneidung separat ausgewiesen.</div>
+    <div class="toolbar" style="margin-bottom:8px"><button class="primary" id="exportMerged">Verknüpfte Daten als CSV exportieren</button></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Beobachtungs-ID</th><th>Weg</th><th>Weg Start</th><th>Weg Ende</th><th class="right">Wegdauer</th><th>Tätigkeit</th><th>Kategorie</th><th>Art</th><th class="right">Überlappung</th><th class="right">Anteil Weg</th></tr></thead>
+      <tbody id="syncBody"></tbody>
+    </table></div>
+  </div>
+
+  <div id="view-activities" class="view">
+    <h2>Tätigkeiten zuordnen</h2>
+    <div class="small" style="margin-bottom:8px">Die Lean-Kategorisierung erfolgt erst hier. Gleiche Tätigkeitsnamen werden automatisch zusammengefasst.</div>
+    <div class="table-wrap"><table><thead><tr><th>Tätigkeit</th><th class="right">Zeit</th><th class="right">Anteil</th><th>Kategorie</th></tr></thead><tbody id="assignBody"></tbody></table></div>
+    <h3 style="margin-top:14px">Kategorien verwalten</h3><div id="catEditor"></div><div class="toolbar"><button class="secondary" id="addCat">+ Kategorie</button><button class="primary" id="saveCats">Kategorien speichern</button></div>
+  </div>
+
+  <div id="view-categories" class="view"><h2>Zeitanteile nach Kategorie</h2><div id="catBars"></div></div>
+  <div id="view-paths" class="view"><h2>Wegzeiten</h2><div id="pathBars"></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Beobachtungs-ID</th><th>Weg</th><th>Start</th><th>Ende</th><th class="right">Dauer</th></tr></thead><tbody id="pathBody"></tbody></table></div></div>
+
+  <div id="view-details" class="view">
+    <h2>Tätigkeits-Rohdaten</h2><div class="table-wrap"><table><thead><tr><th>ID</th><th>Datum</th><th>Mitarbeiter</th><th>Beschreibung</th><th>Tätigkeit</th><th>Kategorie</th><th>Start ISO</th><th>Ende ISO</th><th class="right">Dauer</th></tr></thead><tbody id="detailBody"></tbody></table></div>
+  </div>
+</section>
+</div>
+
+<script>
+(()=>{'use strict';
+const MAP_KEY='lean_sync_mapping_v1', CAT_KEY='lean_sync_categories_v1';
+const DEFAULT_CATS=['Wertschöpfend','Notwendige Nebenarbeit','Transport / Bewegung','Suchen','Warten','Nacharbeit / Fehler','Sonstige Verschwendung'];
+let actRows=[], pathRows=[], mapping=loadJson(MAP_KEY,{}), categories=loadJson(CAT_KEY,DEFAULT_CATS), syncRows=[];
+if(!Array.isArray(categories)||!categories.length)categories=[...DEFAULT_CATS];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadJson(k,d){try{let x=localStorage.getItem(k);return x?JSON.parse(x):d}catch{return d}}
+function savePrefs(){localStorage.setItem(MAP_KEY,JSON.stringify(mapping));localStorage.setItem(CAT_KEY,JSON.stringify(categories))}
+function notice(t,ok=false){let n=$('notice');n.textContent=t;n.className='notice'+(ok?' ok':'');n.style.display='block';clearTimeout(notice.t);notice.t=setTimeout(()=>n.style.display='none',5000)}
+function parseCSV(text){
+  text=text.replace(/^\uFEFF/,'');let out=[],row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){let c=text[i];
+    if(q){if(c=='"'&&text[i+1]=='"'){cell+='"';i++}else if(c=='"')q=false;else cell+=c}
+    else{if(c=='"')q=true;else if(c==';'){row.push(cell);cell=''}else if(c=='\n'){row.push(cell.replace(/\r$/,''));out.push(row);row=[];cell=''}else cell+=c}
+  }
+  if(cell||row.length){row.push(cell.replace(/\r$/,''));out.push(row)}return out;
+}
+function headerMap(h){let m={};h.forEach((x,i)=>m[x.trim()]=i);return m}
+function val(r,m,...names){for(const n of names){if(m[n]!==undefined)return (r[m[n]]??'').trim()}return ''}
+function num(s){return parseFloat(String(s??'0').replace(',','.'))||0}
+function msFromISO(s){let t=Date.parse(s);return Number.isFinite(t)?t:null}
+function fmt(sec){sec=Math.max(0,Math.round(sec));let h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':')}
+function pct(x,t){return t?100*x/t:0}
+function catOf(a){return mapping[a]||''}
+function pathLabel(r,i){
+  return r.weg || r.nr || r.name || `Weg ${i+1}`;
+}
+function ingestActivity(text,file){
+  let a=parseCSV(text);if(a.length<2)return 0;let m=headerMap(a[0]);
+  const req=['Beobachtungs_ID','Datum','Start_ISO_Millisekunden','Ende_ISO_Millisekunden','Dauer_Millisekunden'];
+  if(req.some(x=>m[x]===undefined)||m['Tätigkeit']===undefined)throw new Error(file+': Kein gültiger Tätigkeits-CSV-Export.');
+  let n=0;
+  a.slice(1).forEach(r=>{
+    let act=val(r,m,'Tätigkeit'); if(!act)return;
+    let s=msFromISO(val(r,m,'Start_ISO_Millisekunden')), e=msFromISO(val(r,m,'Ende_ISO_Millisekunden'));
+    if(s===null||e===null)return;
+    actRows.push({
+      obs:val(r,m,'Beobachtungs_ID'),date:val(r,m,'Datum'),employee:val(r,m,'Mitarbeiter'),
+      desc:val(r,m,'Beschreibung'),activity:act,startISO:val(r,m,'Start_ISO_Millisekunden'),
+      endISO:val(r,m,'Ende_ISO_Millisekunden'),startMs:s,endMs:e,durationMs:num(val(r,m,'Dauer_Millisekunden'))||Math.max(0,e-s),file
+    });n++;
+  });return n;
+}
+function ingestPath(text,file){
+  let a=parseCSV(text);if(a.length<2)return 0;let m=headerMap(a[0]);
+  const req=['Beobachtungs_ID','Datum','Start_ISO_Millisekunden','Ende_ISO_Millisekunden','Dauer_Millisekunden'];
+  if(req.some(x=>m[x]===undefined))throw new Error(file+': Synchronisationsspalten der Wegdatei fehlen.');
+  let n=0;
+  a.slice(1).forEach((r,idx)=>{
+    let s=msFromISO(val(r,m,'Start_ISO_Millisekunden')), e=msFromISO(val(r,m,'Ende_ISO_Millisekunden'));
+    if(s===null||e===null)return;
+    let nr=val(r,m,'Weg_Nr','WegNr','Wegnummer','Nummer','#');
+    let weg=val(r,m,'Weg','Weg_Bezeichnung','Bezeichnung','Strecke','Pfad');
+    let extra={}; Object.keys(m).forEach(k=>{if(!['Beobachtungs_ID','Datum','Startzeit','Endzeit','Start_ISO_Millisekunden','Ende_ISO_Millisekunden','Dauer_Millisekunden','Dauer_Sekunden'].includes(k))extra[k]=val(r,m,k)});
+    pathRows.push({
+      obs:val(r,m,'Beobachtungs_ID'),date:val(r,m,'Datum'),nr,weg,name:weg||nr,
+      startISO:val(r,m,'Start_ISO_Millisekunden'),endISO:val(r,m,'Ende_ISO_Millisekunden'),
+      startMs:s,endMs:e,durationMs:num(val(r,m,'Dauer_Millisekunden'))||Math.max(0,e-s),
+      extra,file,sourceIndex:idx
+    });n++;
+  });return n;
+}
+async function loadFiles(fs,type){
+  let n=0;
+  for(const f of fs){try{n+= type==='act'?ingestActivity(await f.text(),f.name):ingestPath(await f.text(),f.name)}catch(e){notice(e.message)}}
+  dedupe(); recalc(); notice(`${n} ${type==='act'?'Tätigkeits':'Weg'}-Datensätze eingelesen.`,true);
+}
+function dedupe(){
+  let sa=new Set();actRows=actRows.filter(r=>{let k=[r.obs,r.activity,r.startMs,r.endMs].join('|');if(sa.has(k))return false;sa.add(k);return true});
+  let sp=new Set();pathRows=pathRows.filter(r=>{let k=[r.obs,r.startMs,r.endMs,r.nr,r.weg].join('|');if(sp.has(k))return false;sp.add(k);return true});
+}
+function filteredActs(ignoreCat=false){
+  let o=$('fObs').value,d=$('fDate').value,e=$('fEmployee').value,desc=$('fDesc').value.trim().toLowerCase(),c=$('fCat').value,at=$('fAct').value.trim().toLowerCase();
+  return actRows.filter(r=>(!o||r.obs===o)&&(!d||r.date===d)&&(!e||r.employee===e)&&(!desc||r.desc.toLowerCase().includes(desc))&&(ignoreCat||!c||catOf(r.activity)===c)&&(!at||r.activity.toLowerCase().includes(at)));
+}
+function filteredPaths(){
+  let o=$('fObs').value,d=$('fDate').value;
+  return pathRows.filter(r=>(!o||r.obs===o)&&(!d||r.date===d));
+}
+function aggregate(rs,key,msKey='durationMs'){
+  let m=new Map();rs.forEach(r=>{let k=key(r);m.set(k,(m.get(k)||0)+(r[msKey]||0))});return [...m].map(([name,ms])=>({name,ms})).sort((a,b)=>b.ms-a.ms)
+}
+function options(id,vals,all='Alle'){let el=$(id),old=el.value;el.innerHTML=`<option value="">${all}</option>`+[...vals].filter(Boolean).sort((a,b)=>a.localeCompare(b,'de')).map(v=>`<option>${esc(v)}</option>`).join('');if([...el.options].some(o=>o.value===old))el.value=old}
+function calcSync(){
+  syncRows=[]; let tol=Math.max(0,num($('tol').value))*1000, off=num($('offset').value)*1000;
+  pathRows.forEach((p,pi)=>{
+    let ps=p.startMs+off, pe=p.endMs+off;
+    let candidates=actRows.filter(a=>a.obs===p.obs);
+    let overlaps=[];
+    for(const a of candidates){
+      let ov=Math.max(0,Math.min(pe,a.endMs)-Math.max(ps,a.startMs));
+      if(ov>0)overlaps.push({p,pi,a,type:'Überlappung',overlapMs:ov,gapMs:0});
+    }
+    if(overlaps.length){syncRows.push(...overlaps);return}
+    let best=null;
+    for(const a of candidates){
+      let gap=0;
+      if(a.endMs<ps)gap=ps-a.endMs; else if(a.startMs>pe)gap=a.startMs-pe; else gap=0;
+      if(gap<=tol && (!best||gap<best.gapMs))best={p,pi,a,type:'Toleranz',overlapMs:0,gapMs:gap};
+    }
+    if(best)syncRows.push(best); else syncRows.push({p,pi,a:null,type:'Keine Zuordnung',overlapMs:0,gapMs:null});
+  });
+}
+function renderAssign(){
+  let rs=filteredActs(true),agg=aggregate(rs,r=>r.activity),total=agg.reduce((s,x)=>s+x.ms,0);
+  $('assignBody').innerHTML=agg.map(x=>`<tr><td>${esc(x.name)}</td><td class="right">${fmt(x.ms/1000)}</td><td class="right">${pct(x.ms,total).toFixed(1).replace('.',',')} %</td><td><select class="assign" data-act="${esc(x.name)}"><option value="">– noch nicht zugeordnet –</option>${categories.map(c=>`<option ${mapping[x.name]===c?'selected':''}>${esc(c)}</option>`).join('')}</select></td></tr>`).join('')||'<tr><td colspan="4" class="small">Keine Daten.</td></tr>';
+}
+function bars(id,agg){
+  let total=agg.reduce((s,x)=>s+x.ms,0),max=Math.max(1,...agg.map(x=>x.ms));
+  $(id).innerHTML=agg.map(x=>`<div class="barrow"><div><b>${esc(x.name||'Nicht zugeordnet')}</b></div><div class="bartrack"><div class="bar" style="width:${100*x.ms/max}%"></div></div><div class="right">${fmt(x.ms/1000)}<br><span class="small">${pct(x.ms,total).toFixed(1).replace('.',',')} %</span></div></div>`).join('')||'<div class="small">Keine Daten.</div>';
+}
+function renderSync(){
+  let allowedPaths=new Set(filteredPaths()), allowedActs=new Set(filteredActs(true));
+  let rs=syncRows.filter(x=>allowedPaths.has(x.p) && (!x.a || allowedActs.has(x.a)));
+  $('syncBody').innerHTML=rs.map(x=>{
+    let cls=x.type==='Überlappung'?'exact':x.type==='Toleranz'?'tol':'none';
+    let info=x.type==='Toleranz'?`Toleranz (${(x.gapMs/1000).toFixed(2).replace('.',',')} s Abstand)`:x.type;
+    let share=x.overlapMs?`${pct(x.overlapMs,x.p.durationMs).toFixed(1).replace('.',',')} %`:'–';
+    return `<tr><td>${esc(x.p.obs)}</td><td>${esc(pathLabel(x.p,x.pi))}</td><td>${esc(x.p.startISO)}</td><td>${esc(x.p.endISO)}</td><td class="right">${fmt(x.p.durationMs/1000)}</td><td>${x.a?esc(x.a.activity):'–'}</td><td>${x.a?esc(catOf(x.a.activity)||'Nicht zugeordnet'):'–'}</td><td><span class="badge ${cls}">${esc(info)}</span></td><td class="right">${x.overlapMs?fmt(x.overlapMs/1000):'–'}</td><td class="right">${share}</td></tr>`;
+  }).join('')||'<tr><td colspan="10" class="small">Keine verknüpften Daten.</td></tr>';
+  let fp=filteredPaths(), matched=new Set(rs.filter(x=>x.a).map(x=>x.p)), unmatched=fp.filter(p=>!syncRows.some(x=>x.p===p&&x.a));
+  $('kMatched').textContent=matched.size;$('kUnmatched').textContent=unmatched.length;
+}
+function renderAll(){
+  options('fObs',new Set([...actRows.map(r=>r.obs),...pathRows.map(r=>r.obs)]));
+  options('fDate',new Set([...actRows.map(r=>r.date),...pathRows.map(r=>r.date)]));
+  options('fEmployee',new Set(actRows.map(r=>r.employee)));
+  options('fCat',new Set(categories));
+  $('actInfo').textContent=`${actRows.length} Tätigkeitsabschnitte aus ${new Set(actRows.map(r=>r.file)).size} Datei(en).`;
+  $('pathInfo').textContent=`${pathRows.length} Wege aus ${new Set(pathRows.map(r=>r.file)).size} Datei(en).`;
+  let fa=filteredActs(),fp=filteredPaths();
+  $('kActRows').textContent=fa.length;$('kActTime').textContent=fmt(fa.reduce((s,r)=>s+r.durationMs,0)/1000);
+  $('kPaths').textContent=fp.length;$('kPathTime').textContent=fmt(fp.reduce((s,r)=>s+r.durationMs,0)/1000);
+  renderAssign(); bars('catBars',aggregate(fa,r=>catOf(r.activity)||'Nicht zugeordnet'));
+  bars('pathBars',aggregate(fp,(r,i)=>pathLabel(r,i)));
+  $('pathBody').innerHTML=fp.map((r,i)=>`<tr><td>${esc(r.obs)}</td><td>${esc(pathLabel(r,i))}</td><td>${esc(r.startISO)}</td><td>${esc(r.endISO)}</td><td class="right">${fmt(r.durationMs/1000)}</td></tr>`).join('')||'<tr><td colspan="5" class="small">Keine Wegdaten.</td></tr>';
+  $('detailBody').innerHTML=fa.map(r=>`<tr><td>${esc(r.obs)}</td><td>${esc(r.date)}</td><td>${esc(r.employee)}</td><td>${esc(r.desc)}</td><td>${esc(r.activity)}</td><td>${esc(catOf(r.activity)||'Nicht zugeordnet')}</td><td>${esc(r.startISO)}</td><td>${esc(r.endISO)}</td><td class="right">${fmt(r.durationMs/1000)}</td></tr>`).join('')||'<tr><td colspan="9" class="small">Keine Tätigkeitsdaten.</td></tr>';
+  renderCatEditor(); renderSync();
+}
+function renderCatEditor(){$('catEditor').innerHTML=categories.map((c,i)=>`<div class="catrow"><input data-ci="${i}" value="${esc(c)}"><button class="secondary" data-rm="${i}">Entfernen</button></div>`).join('')}
+function recalc(){calcSync();renderAll()}
+function setupDrop(dropId,inputId,pickId,type){
+  $(pickId).onclick=()=>$(inputId).click();$(inputId).onchange=e=>loadFiles(e.target.files,type);
+  let d=$(dropId);['dragenter','dragover'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add('drag')}));
+  ['dragleave','drop'].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove('drag')}));
+  d.addEventListener('drop',e=>loadFiles([...e.dataTransfer.files].filter(f=>f.name.toLowerCase().endsWith('.csv')),type));
+}
+setupDrop('dropAct','fileAct','pickAct','act'); setupDrop('dropPath','filePath','pickPath','path');
+$('applySync').onclick=recalc;
+['fObs','fDate','fEmployee','fCat'].forEach(id=>$(id).addEventListener('change',renderAll));
+['fDesc','fAct'].forEach(id=>$(id).addEventListener('input',renderAll));
+$('assignBody').addEventListener('change',e=>{if(e.target.matches('select[data-act]')){let a=e.target.dataset.act;if(e.target.value)mapping[a]=e.target.value;else delete mapping[a];savePrefs();renderAll()}});
+$('addCat').onclick=()=>{categories.push('Neue Kategorie');renderCatEditor()};
+$('catEditor').addEventListener('click',e=>{if(e.target.dataset.rm!==undefined){categories.splice(+e.target.dataset.rm,1);renderCatEditor()}});
+$('saveCats').onclick=()=>{categories=[...$('catEditor').querySelectorAll('input')].map(i=>i.value.trim()).filter(Boolean);categories=[...new Set(categories)];Object.keys(mapping).forEach(a=>{if(!categories.includes(mapping[a]))delete mapping[a]});savePrefs();renderAll();notice('Kategorien gespeichert.',true)};
+$('clearBtn').onclick=()=>{actRows=[];pathRows=[];syncRows=[];renderAll();notice('Eingelesene Daten wurden geleert. Kategorien bleiben gespeichert.',true)};
+$('exportMapBtn').onclick=()=>{let blob=new Blob([JSON.stringify({categories,mapping},null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Lean_Kategorien_Zuordnung.json';a.click();URL.revokeObjectURL(u)};
+$('importMapBtn').onclick=()=>$('mapInput').click();
+$('mapInput').onchange=async e=>{try{let x=JSON.parse(await e.target.files[0].text());if(Array.isArray(x.categories))categories=x.categories;if(x.mapping&&typeof x.mapping==='object')mapping=x.mapping;savePrefs();renderAll();notice('Zuordnung importiert.',true)}catch{notice('Zuordnungsdatei konnte nicht gelesen werden.')}};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('view-'+b.dataset.view).classList.add('active')});
+function csvCell(v){return `"${String(v??'').replaceAll('"','""')}"`}
+$('exportMerged').onclick=()=>{
+  let allowedPaths=new Set(filteredPaths()), allowedActs=new Set(filteredActs(true));
+  let rs=syncRows.filter(x=>allowedPaths.has(x.p)&&(!x.a||allowedActs.has(x.a)));
+  if(!rs.length){notice('Keine verknüpften Daten zum Exportieren.');return}
+  let hdr=['Beobachtungs_ID','Weg','Weg_Start_ISO','Weg_Ende_ISO','Weg_Dauer_Millisekunden','Tätigkeit','Kategorie','Zuordnungsart','Überlappung_Millisekunden','Abstand_Millisekunden','Anteil_Weg_Prozent'];
+  let lines=[hdr];
+  rs.forEach(x=>lines.push([x.p.obs,pathLabel(x.p,x.pi),x.p.startISO,x.p.endISO,x.p.durationMs,x.a?x.a.activity:'',x.a?catOf(x.a.activity):'',x.type,x.overlapMs,x.gapMs??'',x.overlapMs?(100*x.overlapMs/x.p.durationMs).toFixed(3).replace('.',','):'']));
+  let blob=new Blob(['\uFEFF'+lines.map(r=>r.map(csvCell).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='Lean_Wege_Taetigkeiten_verknuepft.csv';a.click();URL.revokeObjectURL(u)
+};
+renderAll();
+})();
+</script>
+</body></html>

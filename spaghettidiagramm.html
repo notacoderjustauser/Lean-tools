@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Lean Spaghettidiagramm</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --danger: #b91c1c;
+      --ok: #166534;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    header h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+    }
+    header p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+      min-height: calc(100vh - 70px);
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    button, .filelabel, select {
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    button, .filelabel { cursor: pointer; }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.danger { color: var(--danger); }
+    button:disabled { opacity: .45; cursor: default; }
+    input[type="file"] { display:none; }
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-left: auto;
+    }
+    .canvas-wrap {
+      overflow: auto;
+      width: 100%;
+      height: calc(100vh - 145px);
+      min-height: 500px;
+      background:
+        linear-gradient(45deg, #fafafa 25%, transparent 25%),
+        linear-gradient(-45deg, #fafafa 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #fafafa 75%),
+        linear-gradient(-45deg, transparent 75%, #fafafa 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+      touch-action: pan-x pan-y;
+    }
+    #stage {
+      position: relative;
+      display: inline-block;
+      transform-origin: 0 0;
+      line-height: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #pdfCanvas, #drawCanvas {
+      display: block;
+    }
+    #drawCanvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .side {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+    .side .card { padding: 12px; }
+    h2 {
+      font-size: 16px;
+      margin: 0 0 10px;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .meta label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta input {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 9px;
+      font-size: 14px;
+      color: var(--text);
+      background: white;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .metric {
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .metric b { display:block; font-size: 18px; }
+    .metric span { font-size: 11px; color:var(--muted); }
+    .list {
+      max-height: 42vh;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 36px minmax(0,1fr) 68px 34px;
+      gap: 6px;
+      align-items: center;
+      padding: 7px 6px;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+    }
+    .row:last-child { border-bottom: 0; }
+    .num {
+      width: 28px; height: 28px; border-radius: 50%;
+      display:flex; align-items:center; justify-content:center;
+      background:#111827; color:white; font-weight:700;
+    }
+    .times { line-height: 1.4; }
+    .dur { font-variant-numeric: tabular-nums; text-align:right; }
+    .iconbtn {
+      width: 30px; min-height: 30px; padding:0;
+      border-radius: 6px; color: var(--danger);
+    }
+    .hint {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--muted);
+      margin: 0;
+    }
+    .exports {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .exports button:first-child { grid-column: 1 / -1; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .canvas-wrap { height: 62vh; min-height: 420px; }
+      .list { max-height: 260px; }
+      .status { width: 100%; margin-left:0; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Lean Spaghettidiagramm</h1>
+  <p>Beobachter 1 erfasst ausschließlich den Mitarbeiterweg. Maus/Finger nachziehen, Wege automatisch nummerieren und mit präzisen Zeitstempeln exportieren.</p>
+</header>
+
+<div class="layout">
+  <section class="card">
+    <div class="toolbar">
+      <label class="filelabel primary">
+        PDF laden
+        <input id="pdfInput" type="file" accept="application/pdf" />
+      </label>
+      <label class="filelabel">
+        Bild laden
+        <input id="imgInput" type="file" accept="image/*" />
+      </label>
+      <button id="undoBtn" disabled>Letzten Weg löschen</button>
+      <button id="clearBtn" class="danger" disabled>Alle Wege löschen</button>
+      <button id="zoomOutBtn" disabled title="Verkleinern">−</button>
+      <button id="fitBtn" disabled title="Grundriss vollständig anzeigen">Einpassen</button>
+      <button id="zoomInBtn" disabled title="Vergrößern">+</button>
+      <span id="zoomLabel" style="font-size:13px;color:#6b7280;min-width:46px;text-align:center">100%</span>
+      <select id="pageSelect" title="PDF-Seite" disabled>
+        <option>Seite 1</option>
+      </select>
+      <span class="status" id="status">Bitte Grundriss laden.</span>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap">
+      <div id="stage">
+        <canvas id="pdfCanvas"></canvas>
+        <canvas id="drawCanvas"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card">
+      <h2>Beobachtung</h2>
+      <div class="meta">
+        <div>
+          <label for="observationId">Beobachtungs-ID</label>
+          <input id="observationId" placeholder="z. B. 2026-09-04_Montagetisch1_01" />
+        </div>
+        <div>
+          <label for="observer">Beobachter</label>
+          <input id="observer" placeholder="optional" />
+        </div>
+        <div>
+          <label for="employee">Beobachtete Person / Arbeitsplatz</label>
+          <input id="employee" placeholder="optional" />
+        </div>
+        <div>
+          <label for="note">Notiz</label>
+          <input id="note" placeholder="optional" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Wege</h2>
+      <div class="summary">
+        <div class="metric"><b id="countMetric">0</b><span>aufgezeichnete Wege</span></div>
+        <div class="metric"><b id="timeMetric">0:00</b><span>Gesamtzeit Strichführung</span></div>
+      </div>
+      <div class="list" id="pathList"></div>
+      <p class="hint" style="margin-top:10px">
+        Hier werden ausschließlich Wege erfasst – keine Tätigkeiten. Jeder zusammenhängende Strich ist ein Weg. Die Zeitmessung beginnt beim ersten Kontakt mit dem Grundriss und endet beim Loslassen.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Export</h2>
+      <div class="exports">
+        <button id="csvBtn" class="primary" disabled>CSV exportieren</button>
+        <button id="pngBtn" disabled>Bild (PNG)</button>
+        <button id="pdfBtn" disabled>PDF</button>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        Der Export enthält den Grundriss samt eingezeichneter, nummerierter Wege.
+      </p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+
+<script type="module">
+  import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+
+  const pdfInput = document.getElementById('pdfInput');
+  const imgInput = document.getElementById('imgInput');
+  const pdfCanvas = document.getElementById('pdfCanvas');
+  const drawCanvas = document.getElementById('drawCanvas');
+  const stage = document.getElementById('stage');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const pctx = pdfCanvas.getContext('2d');
+  const dctx = drawCanvas.getContext('2d');
+
+  const undoBtn = document.getElementById('undoBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const csvBtn = document.getElementById('csvBtn');
+  const pngBtn = document.getElementById('pngBtn');
+  const pdfBtn = document.getElementById('pdfBtn');
+  const pageSelect = document.getElementById('pageSelect');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const fitBtn = document.getElementById('fitBtn');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const statusEl = document.getElementById('status');
+  const pathList = document.getElementById('pathList');
+  const countMetric = document.getElementById('countMetric');
+  const timeMetric = document.getElementById('timeMetric');
+
+  const observationId = document.getElementById('observationId');
+  const observer = document.getElementById('observer');
+  const employee = document.getElementById('employee');
+  const note = document.getElementById('note');
+
+  let pdfDoc = null;
+  let currentPage = 1;
+  let sourceName = '';
+  let paths = [];
+  let currentPath = null;
+  let drawing = false;
+  let loaded = false;
+  let renderScale = 1.6;
+  let zoom = 1;
+  let minZoom = 0.15;
+  let maxZoom = 5;
+  let activePointers = new Map();
+  let pinchStartDistance = null;
+  let pinchStartZoom = 1;
+  let suppressDrawing = false;
+
+  function setStatus(text) { statusEl.textContent = text; }
+
+  function applyZoom(newZoom, anchorClientX=null, anchorClientY=null) {
+    if (!loaded) return;
+    const oldZoom = zoom;
+    zoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+
+    let oldLeft = 0, oldTop = 0, contentX = 0, contentY = 0;
+    if (anchorClientX !== null && anchorClientY !== null) {
+      const wrapRect = canvasWrap.getBoundingClientRect();
+      oldLeft = canvasWrap.scrollLeft;
+      oldTop = canvasWrap.scrollTop;
+      contentX = (oldLeft + anchorClientX - wrapRect.left) / oldZoom;
+      contentY = (oldTop + anchorClientY - wrapRect.top) / oldZoom;
+    }
+
+    stage.style.transform = `scale(${zoom})`;
+    stage.style.marginRight = `${stage.offsetWidth * (zoom - 1)}px`;
+    stage.style.marginBottom = `${stage.offsetHeight * (zoom - 1)}px`;
+    zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+
+    if (anchorClientX !== null && anchorClientY !== null) {
+      const wrapRect = canvasWrap.getBoundingClientRect();
+      canvasWrap.scrollLeft = contentX * zoom - (anchorClientX - wrapRect.left);
+      canvasWrap.scrollTop = contentY * zoom - (anchorClientY - wrapRect.top);
+    }
+  }
+
+  function fitToWindow() {
+    if (!loaded || !pdfCanvas.width || !pdfCanvas.height) return;
+    const pad = 8;
+    const availableW = Math.max(50, canvasWrap.clientWidth - pad * 2);
+    const availableH = Math.max(50, canvasWrap.clientHeight - pad * 2);
+    const z = Math.min(availableW / pdfCanvas.width, availableH / pdfCanvas.height, 1);
+    applyZoom(z);
+    canvasWrap.scrollLeft = 0;
+    canvasWrap.scrollTop = 0;
+  }
+
+  function zoomBy(factor, x=null, y=null) {
+    applyZoom(zoom * factor, x, y);
+  }
+
+  function setCanvasSize(w, h) {
+    pdfCanvas.width = Math.round(w);
+    pdfCanvas.height = Math.round(h);
+    drawCanvas.width = Math.round(w);
+    drawCanvas.height = Math.round(h);
+    pdfCanvas.style.width = `${Math.round(w)}px`;
+    pdfCanvas.style.height = `${Math.round(h)}px`;
+    drawCanvas.style.width = `${Math.round(w)}px`;
+    drawCanvas.style.height = `${Math.round(h)}px`;
+    stage.style.width = `${Math.round(w)}px`;
+    stage.style.height = `${Math.round(h)}px`;
+  }
+
+  async function renderPdfPage(pageNo) {
+    if (!pdfDoc) return;
+    const page = await pdfDoc.getPage(pageNo);
+    const baseViewport = page.getViewport({scale: 1});
+
+    // Limit very large PDFs while keeping enough detail for exports.
+    const maxW = 2200, maxH = 2200;
+    renderScale = Math.min(
+      2.0,
+      maxW / baseViewport.width,
+      maxH / baseViewport.height
+    );
+    renderScale = Math.max(renderScale, 1.0);
+
+    const viewport = page.getViewport({scale: renderScale});
+    setCanvasSize(viewport.width, viewport.height);
+
+    await page.render({canvasContext: pctx, viewport}).promise;
+    loaded = true;
+    paths = [];
+    redrawPaths();
+    updateUI();
+    requestAnimationFrame(fitToWindow);
+    setStatus(`PDF geladen – Seite ${pageNo} von ${pdfDoc.numPages}.`);
+  }
+
+  pdfInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    sourceName = file.name.replace(/\.pdf$/i, '');
+    setStatus('PDF wird geladen …');
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      pdfDoc = await pdfjsLib.getDocument({data: bytes}).promise;
+      pageSelect.innerHTML = '';
+      for (let i=1; i<=pdfDoc.numPages; i++) {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = `Seite ${i}`;
+        pageSelect.appendChild(o);
+      }
+      pageSelect.disabled = pdfDoc.numPages <= 1;
+      currentPage = 1;
+      await renderPdfPage(currentPage);
+    } catch (err) {
+      console.error(err);
+      setStatus('PDF konnte nicht geladen werden.');
+      alert('Das PDF konnte nicht geladen werden. Prüfe bitte die Datei und die Internetverbindung, da die PDF-Bibliothek online geladen wird.');
+    }
+  });
+
+  pageSelect.addEventListener('change', async () => {
+    if (paths.length && !confirm('Beim Seitenwechsel werden die eingezeichneten Wege dieser Seite gelöscht. Fortfahren?')) {
+      pageSelect.value = currentPage;
+      return;
+    }
+    currentPage = Number(pageSelect.value);
+    await renderPdfPage(currentPage);
+  });
+
+  imgInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    sourceName = file.name.replace(/\.[^.]+$/, '');
+    pdfDoc = null;
+    pageSelect.disabled = true;
+    pageSelect.innerHTML = '<option>Bild</option>';
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const max = 2200;
+      const s = Math.min(1, max / Math.max(w,h));
+      w *= s; h *= s;
+      setCanvasSize(w,h);
+      pctx.clearRect(0,0,pdfCanvas.width,pdfCanvas.height);
+      pctx.drawImage(img,0,0,pdfCanvas.width,pdfCanvas.height);
+      URL.revokeObjectURL(url);
+      loaded = true;
+      paths = [];
+      redrawPaths();
+      updateUI();
+      requestAnimationFrame(fitToWindow);
+      setStatus('Bild geladen.');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      setStatus('Bild konnte nicht geladen werden.');
+    };
+    img.src = url;
+  });
+
+  function pointFromEvent(ev) {
+    const rect = drawCanvas.getBoundingClientRect();
+    return {
+      x: (ev.clientX - rect.left) * (drawCanvas.width / rect.width),
+      y: (ev.clientY - rect.top) * (drawCanvas.height / rect.height)
+    };
+  }
+
+  drawCanvas.addEventListener('pointerdown', (ev) => {
+    if (!loaded) return;
+    activePointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+
+    if (activePointers.size >= 2) {
+      suppressDrawing = true;
+      drawing = false;
+      currentPath = null;
+      const pts = [...activePointers.values()];
+      pinchStartDistance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      pinchStartZoom = zoom;
+      ev.preventDefault();
+      return;
+    }
+
+    suppressDrawing = false;
+    ev.preventDefault();
+    drawCanvas.setPointerCapture(ev.pointerId);
+    drawing = true;
+    const p = pointFromEvent(ev);
+    currentPath = {
+      id: paths.length + 1,
+      start: new Date(),
+      end: null,
+      points: [p]
+    };
+    redrawPaths();
+  });
+
+  drawCanvas.addEventListener('pointermove', (ev) => {
+    if (activePointers.has(ev.pointerId)) {
+      activePointers.set(ev.pointerId, {x: ev.clientX, y: ev.clientY});
+    }
+
+    if (activePointers.size >= 2 && pinchStartDistance) {
+      const pts = [...activePointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const cx = (pts[0].x + pts[1].x) / 2;
+      const cy = (pts[0].y + pts[1].y) / 2;
+      applyZoom(pinchStartZoom * (dist / pinchStartDistance), cx, cy);
+      ev.preventDefault();
+      return;
+    }
+
+    if (!drawing || !currentPath || suppressDrawing) return;
+    ev.preventDefault();
+    const p = pointFromEvent(ev);
+    const last = currentPath.points[currentPath.points.length-1];
+    const dx = p.x-last.x, dy=p.y-last.y;
+    if ((dx*dx + dy*dy) >= 3) {
+      currentPath.points.push(p);
+      redrawPaths(currentPath);
+    }
+  });
+
+  function finishPath(ev) {
+    activePointers.delete(ev.pointerId);
+    if (activePointers.size < 2) {
+      pinchStartDistance = null;
+    }
+    if (suppressDrawing) {
+      if (activePointers.size === 0) suppressDrawing = false;
+      drawing = false;
+      currentPath = null;
+      redrawPaths();
+      return;
+    }
+    if (!drawing || !currentPath) return;
+    ev.preventDefault();
+    currentPath.end = new Date();
+    if (currentPath.points.length === 1) {
+      const p = currentPath.points[0];
+      currentPath.points.push({x:p.x+0.1,y:p.y+0.1});
+    }
+    paths.push(currentPath);
+    currentPath = null;
+    drawing = false;
+    renumberPaths();
+    redrawPaths();
+    updateUI();
+  }
+
+  drawCanvas.addEventListener('pointerup', finishPath);
+  drawCanvas.addEventListener('pointercancel', finishPath);
+
+  function renumberPaths() {
+    paths.forEach((p,i) => p.id = i+1);
+  }
+
+  function drawOnePath(ctx, path) {
+    if (!path.points.length) return;
+    ctx.save();
+    ctx.lineWidth = Math.max(4, drawCanvas.width / 450);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#d7191c';
+    ctx.beginPath();
+    ctx.moveTo(path.points[0].x, path.points[0].y);
+    for (let i=1;i<path.points.length;i++) ctx.lineTo(path.points[i].x, path.points[i].y);
+    ctx.stroke();
+
+    const first = path.points[0];
+    const r = Math.max(11, drawCanvas.width / 130);
+    ctx.fillStyle = '#111827';
+    ctx.beginPath();
+    ctx.arc(first.x, first.y, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${Math.round(r*1.15)}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(path.id), first.x, first.y+0.5);
+    ctx.restore();
+  }
+
+  function redrawPaths(temp=null) {
+    dctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+    for (const p of paths) drawOnePath(dctx,p);
+    if (temp) drawOnePath(dctx,temp);
+  }
+
+  function fmtTime(d) {
+    if (!d) return '';
+    return d.toLocaleTimeString('de-AT', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    const z = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+  }
+
+  function fmtIsoLocal(d) {
+    if (!d) return '';
+    const z = (n, len=2) => String(n).padStart(len,'0');
+    const off = -d.getTimezoneOffset();
+    const sign = off >= 0 ? '+' : '-';
+    const oh = z(Math.floor(Math.abs(off)/60));
+    const om = z(Math.abs(off)%60);
+    return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}.${z(d.getMilliseconds(),3)}${sign}${oh}:${om}`;
+  }
+
+  function durationMs(p) {
+    return p.end ? p.end - p.start : 0;
+  }
+
+  function fmtDuration(ms) {
+    const s = ms/1000;
+    if (s < 60) return `${s.toFixed(1)} s`;
+    const m = Math.floor(s/60);
+    return `${m}:${String(Math.floor(s%60)).padStart(2,'0')} min`;
+  }
+
+  function updateUI() {
+    const hasPaths = paths.length > 0;
+    undoBtn.disabled = !hasPaths;
+    clearBtn.disabled = !hasPaths;
+    csvBtn.disabled = !hasPaths;
+    pngBtn.disabled = !loaded;
+    pdfBtn.disabled = !loaded;
+    zoomOutBtn.disabled = !loaded;
+    zoomInBtn.disabled = !loaded;
+    fitBtn.disabled = !loaded;
+
+    countMetric.textContent = paths.length;
+    const total = paths.reduce((s,p)=>s+durationMs(p),0);
+    timeMetric.textContent = total < 60000 ? `${(total/1000).toFixed(1)} s` : fmtDuration(total).replace(' min','');
+
+    pathList.innerHTML = '';
+    if (!hasPaths) {
+      const div = document.createElement('div');
+      div.style.padding='12px';
+      div.style.fontSize='12px';
+      div.style.color='#6b7280';
+      div.textContent='Noch keine Wege aufgezeichnet.';
+      pathList.appendChild(div);
+      return;
+    }
+    paths.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `
+        <div class="num">${p.id}</div>
+        <div class="times">${fmtTime(p.start)} – ${fmtTime(p.end)}</div>
+        <div class="dur">${fmtDuration(durationMs(p))}</div>
+        <button class="iconbtn" title="Weg löschen" data-i="${idx}">×</button>`;
+      pathList.appendChild(row);
+    });
+    pathList.querySelectorAll('.iconbtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        paths.splice(Number(btn.dataset.i),1);
+        renumberPaths();
+        redrawPaths();
+        updateUI();
+      });
+    });
+  }
+
+  undoBtn.addEventListener('click', () => {
+    paths.pop();
+    renumberPaths();
+    redrawPaths();
+    updateUI();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if (!confirm('Alle aufgezeichneten Wege löschen?')) return;
+    paths = [];
+    redrawPaths();
+    updateUI();
+  });
+
+  function safeCsv(v) {
+    v = String(v ?? '');
+    return `"${v.replaceAll('"','""')}"`;
+  }
+
+  csvBtn.addEventListener('click', () => {
+    const header = [
+      'Beobachtungs_ID','Weg_Nr','Datum','Startzeit','Endzeit',
+      'Start_ISO_Millisekunden','Ende_ISO_Millisekunden','Dauer_Millisekunden','Dauer_Sekunden',
+      'Beobachter','Person_Arbeitsplatz','Notiz','Grundriss','Seite'
+    ];
+    const rows = [header.map(safeCsv).join(';')];
+    for (const p of paths) {
+      rows.push([
+        observationId.value,
+        p.id,
+        fmtDate(p.start),
+        fmtTime(p.start),
+        fmtTime(p.end),
+        fmtIsoLocal(p.start),
+        fmtIsoLocal(p.end),
+        durationMs(p),
+        (durationMs(p)/1000).toFixed(3).replace('.',','),
+        observer.value,
+        employee.value,
+        note.value,
+        sourceName,
+        pdfDoc ? currentPage : ''
+      ].map(safeCsv).join(';'));
+    }
+    downloadBlob(
+      new Blob(["\ufeff" + rows.join('\r\n')], {type:'text/csv;charset=utf-8'}),
+      `${baseFilename()}_wege.csv`
+    );
+  });
+
+  function makeCompositeCanvas() {
+    const c = document.createElement('canvas');
+    c.width = pdfCanvas.width;
+    c.height = pdfCanvas.height;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.drawImage(pdfCanvas,0,0);
+    ctx.drawImage(drawCanvas,0,0);
+    return c;
+  }
+
+  pngBtn.addEventListener('click', () => {
+    const c = makeCompositeCanvas();
+    c.toBlob(blob => downloadBlob(blob, `${baseFilename()}_spaghetti.png`), 'image/png');
+  });
+
+  pdfBtn.addEventListener('click', () => {
+    const c = makeCompositeCanvas();
+    const imgData = c.toDataURL('image/jpeg', 0.95);
+    const { jsPDF } = window.jspdf;
+    const orientation = c.width >= c.height ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({orientation, unit:'mm', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 7;
+    const maxW = pageW - 2*margin;
+    const maxH = pageH - 2*margin;
+    const scale = Math.min(maxW/c.width, maxH/c.height);
+    const w = c.width*scale, h=c.height*scale;
+    const x=(pageW-w)/2, y=(pageH-h)/2;
+    pdf.addImage(imgData,'JPEG',x,y,w,h,undefined,'FAST');
+    pdf.save(`${baseFilename()}_spaghetti.pdf`);
+  });
+
+  function baseFilename() {
+    const d = new Date();
+    const z = n => String(n).padStart(2,'0');
+    const stamp = `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+    return `${sourceName || 'grundriss'}_${stamp}`;
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+
+  zoomOutBtn.addEventListener('click', () => zoomBy(0.8));
+  zoomInBtn.addEventListener('click', () => zoomBy(1.25));
+  fitBtn.addEventListener('click', fitToWindow);
+
+  canvasWrap.addEventListener('wheel', (ev) => {
+    if (!loaded || !ev.ctrlKey) return;
+    ev.preventDefault();
+    const factor = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomBy(factor, ev.clientX, ev.clientY);
+  }, {passive:false});
+
+  window.addEventListener('resize', () => {
+    // Bei Größenänderung nicht automatisch den vom Benutzer gewählten Zoom überschreiben.
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
