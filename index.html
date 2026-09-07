@@ -1,0 +1,137 @@
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lean Tools</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
+      color: #222;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 700px;
+      background: white;
+      padding: 35px;
+      border-radius: 14px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 32px;
+    }
+
+    .subtitle {
+      margin-bottom: 30px;
+      color: #666;
+      font-size: 17px;
+    }
+
+    .buttons {
+      display: grid;
+      gap: 18px;
+    }
+
+    .tool-button {
+      display: block;
+      width: 100%;
+      padding: 22px 18px;
+      text-decoration: none;
+      background: #2f6f3e;
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+      border-radius: 10px;
+      transition: transform 0.1s ease, background 0.1s ease;
+    }
+
+    .tool-button:hover {
+      background: #255c32;
+    }
+
+    .tool-button:active {
+      transform: scale(0.98);
+    }
+
+    .description {
+      display: block;
+      margin-top: 6px;
+      font-size: 14px;
+      font-weight: normal;
+      opacity: 0.9;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 24px 18px;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+
+      .tool-button {
+        font-size: 20px;
+        padding: 20px 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>Lean Tools</h1>
+    <div class="subtitle">
+      Werkzeug auswählen
+    </div>
+
+    <div class="buttons">
+
+      <a class="tool-button" href="zeiterfassung.html">
+        Tätigkeitserfassung
+        <span class="description">
+          Tätigkeiten und Zeiten während der Beobachtung erfassen
+        </span>
+      </a>
+
+      <a class="tool-button" href="spaghettidiagramm.html">
+        Spaghettidiagramm
+        <span class="description">
+          Wege während der Beobachtung aufzeichnen
+        </span>
+      </a>
+
+      <a class="tool-button" href="auswertung.html">
+        Auswertung
+        <span class="description">
+          Aufzeichnungen einlesen und gemeinsam auswerten
+        </span>
+      </a>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+```
